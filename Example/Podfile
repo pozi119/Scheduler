@@ -1,0 +1,11 @@
+use_frameworks!
+
+target 'Scheduler_Example' do
+  pod 'Scheduler', :path => '../'
+
+  target 'Scheduler_Tests' do
+    inherit! :search_paths
+
+    
+  end
+end
