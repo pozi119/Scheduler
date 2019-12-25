@@ -1,0 +1,16 @@
+PODS:
+  - Scheduler (0.1.0)
+
+DEPENDENCIES:
+  - Scheduler (from `../`)
+
+EXTERNAL SOURCES:
+  Scheduler:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  Scheduler: b7ff49f6a5f5487a735e549f12d2225fc00acb40
+
+PODFILE CHECKSUM: 7c0d7388f4e2c6fca2c407b4004dee4eb84b6523
+
+COCOAPODS: 1.8.4
