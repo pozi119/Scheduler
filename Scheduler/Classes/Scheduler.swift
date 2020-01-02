@@ -27,7 +27,7 @@ public protocol Task: Equatable {
     func cancel()
 }
 
-extension Task {
+public extension Task {
     static func == (lhs: Self, rhs: Self) -> Bool {
         return lhs.id == rhs.id
     }
@@ -37,24 +37,6 @@ fileprivate struct Extra {
     var suspendTime: CFAbsoluteTime = 0
     var updateAt: CFAbsoluteTime = 0
     var lastProgress: Double = 0
-}
-
-extension Thread {
-    class func thread(with name: String, qos: QualityOfService) -> Thread {
-        let thread = Thread(target: Thread.self, selector: #selector(Thread._threadMain), object: name)
-        thread.qualityOfService = qos
-        thread.start()
-        return thread
-    }
-
-    @objc class func _threadMain(_ name: String) {
-        autoreleasepool {
-            Thread.current.name = name
-            let runloop = RunLoop.current
-            runloop.add(NSMachPort(), forMode: .default)
-            runloop.run()
-        }
-    }
 }
 
 fileprivate var QueueNum = 0
@@ -67,8 +49,10 @@ public final class Scheduler<Element: Task>: NSObject {
     public var timeout: TimeInterval = 60
     public var durationOfSuspension: TimeInterval = 30
     public var interval: TimeInterval = 0.1
-    public private(set) var policy: Policy = .fifo
+    public var policy: Policy = .fifo
+
     public private(set) var runningTasks: [Element] = []
+
     private var suspendTasks: [Element] = []
     private var allTasks: [Element.Key: Element] = [:]
     private var allExtras: [Element.Key: Extra] = [:]
@@ -138,9 +122,7 @@ public final class Scheduler<Element: Task>: NSObject {
             if let oldtask = allTasks[task.id] {
                 removeTasks.append(oldtask)
                 if oldtask.state.rawValue < State.canceling.rawValue {
-                    queue.async {
-                        oldtask.cancel()
-                    }
+                    queue.async { oldtask.cancel() }
                 }
             }
         }
@@ -165,9 +147,7 @@ public final class Scheduler<Element: Task>: NSObject {
         let changes = runningTasks.filter { taskids.contains($0.id) }
         for task in changes {
             if task.state == .running {
-                queue.async {
-                    task.suspend()
-                }
+                queue.async { task.suspend() }
             }
         }
         runningTasks.removeAll { changes.contains($0) }
@@ -196,7 +176,7 @@ public final class Scheduler<Element: Task>: NSObject {
         let changes = allTasks.filter { taskids.contains($0.key) }.values
         for task in changes {
             if task.state.rawValue < State.canceling.rawValue {
-                task.cancel()
+                queue.async { task.cancel() }
             }
         }
         suspendTasks.removeAll { changes.contains($0) }
@@ -209,7 +189,7 @@ public final class Scheduler<Element: Task>: NSObject {
         lock.wait()
         for task in runningTasks {
             if task.state.rawValue < State.canceling.rawValue {
-                task.cancel()
+                queue.async { task.cancel() }
             }
         }
         runningTasks.removeAll()
@@ -260,9 +240,7 @@ public final class Scheduler<Element: Task>: NSObject {
                 if running >= maxActivations || delay {
                     if delay { extra!.suspendTime = now }
                     pause += 1
-                    queue.async {
-                        task.suspend()
-                    }
+                    queue.async { task.suspend() }
                 } else {
                     extra!.updateAt = now
                     running += 1
@@ -270,9 +248,7 @@ public final class Scheduler<Element: Task>: NSObject {
             case .suspend:
                 let wakeup = extra!.suspendTime == 0 || (now - extra!.suspendTime > durationOfSuspension)
                 if running < maxActivations && wakeup {
-                    queue.async {
-                        task.resume()
-                    }
+                    queue.async { task.resume() }
                     running += 1
                     resume += 1
                     extra!.updateAt = now
@@ -285,7 +261,6 @@ public final class Scheduler<Element: Task>: NSObject {
         }
         runningTasks.removeAll { completedTasks.contains($0) }
         completedTasks.forEach { allTasks.removeValue(forKey: $0.id); allExtras.removeValue(forKey: $0.id) }
-        // print("-->queue:\(runningTasks.count), suspend:\(suspendTasks.count), run:\(running), pause:\(pause), resume:\(resume)")
         if !autoPoll {
             delayPoll()
         }

@@ -24,9 +24,7 @@ public struct Valve {
             lock.wait()
             if keyObjects.count == 0 {
                 let deadline = DispatchWallTime.now()
-                queue.asyncAfter(wallDeadline: deadline) {
-                    self.runMerge()
-                }
+                queue.asyncAfter(wallDeadline: deadline) { self.runMerge() }
             }
             if let oldobj = keyObjects[key], let idx = objects.firstIndex(of: oldobj) {
                 objects.remove(at: idx)
@@ -34,9 +32,7 @@ public struct Valve {
             objects.append(object)
             keyObjects[key] = object
             if objects.count >= maxMergeCount {
-                queue.async {
-                    self.runMerge()
-                }
+                queue.async { self.runMerge() }
             }
             lock.signal()
         }
